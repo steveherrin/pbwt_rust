@@ -37,4 +37,24 @@ fn main() {
     println!("{:?}", prefix_order);
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
 
+    #[test]
+    fn test_prefix_array() {
+        let n_haplo: usize = 8;
+        let n_sites: usize = 6;
+        let haplotypes: Vec<u8> = vec![0, 1, 0, 1, 0, 1,
+                                       1, 1, 0, 0, 0, 1,
+                                       1, 1, 1, 1, 1, 1,
+                                       0, 1, 1, 1, 1, 0,
+                                       0, 0, 0, 0, 0, 0,
+                                       1, 0, 0, 0, 1, 0,
+                                       1, 1, 0, 0, 0, 1,
+                                       0, 1, 0, 1, 1, 0];
+        let expected: Vec<usize> = vec![4, 1, 6, 0, 5, 7, 3, 2];
+        assert_eq!(&expected,
+                   &build_prefix_array(&haplotypes, n_haplo, n_sites));
+    }
+}
