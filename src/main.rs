@@ -1,28 +1,48 @@
-/// Returns the next positional prefix array (Durbin's a_{k+1}) from the current one
+/// Derives the next positional prefix array and divergence array
+/// (Durbin's a_{k+1}[i] and d_{k+1}[i]) from the current ones
 ///
 /// # Arguments
 ///
-/// * `pos_prefix_array` - An array slice holding the current positional prefix array (a_k)
+/// * `pos_prefix_array` - An array slice holding the positional prefix array (a_k[i])
+/// * `div_array` - An array slice holding the divergence array (d_k[i])
 /// * `haplotypes` - An array slice holding the haplotypes at the current (k-th) site
-fn next_positional_prefix_array(pos_prefix_array: &[usize], haplotypes: &[u8]) -> Vec<usize> {
-    let mut allele_0s: Vec<usize> = vec![];
-    let mut allele_1s: Vec<usize> = vec![];
+fn next_pp_and_div_arrays(pos_prefix_array: &[usize], div_array: &[usize], haplotypes: &[u8], k: usize) -> (Vec<usize>, Vec<usize>) {
+    let mut allele_0_pos: Vec<usize> = vec![];
+    let mut allele_0_div: Vec<usize> = vec![];
+    let mut allele_1_pos: Vec<usize> = vec![];
+    let mut allele_1_div: Vec<usize> = vec![];
 
-    for &i in pos_prefix_array {
-        if haplotypes[i] == 0 {
-            allele_0s.push(i);
+    let mut div_0_index: usize = k + 1;  // TODO: Naming. longest_common_prefix?
+    let mut div_1_index: usize = k + 1;
+
+    for (&haplo_index, &start_of_match) in pos_prefix_array.iter().zip(div_array.iter()) {
+        if start_of_match > div_0_index {
+            div_0_index = start_of_match;
+        }
+        if start_of_match > div_1_index {
+            div_1_index = start_of_match;
+        }
+        if haplotypes[haplo_index] == 0 {
+            allele_0_pos.push(haplo_index);
+            allele_0_div.push(div_0_index);
+            div_0_index = 0;
         } else {
-            allele_1s.push(i);
+            allele_1_pos.push(haplo_index);
+            allele_1_div.push(div_1_index);
+            div_1_index = 0;
         }
     }
-    let mut next_pos_prefix_array: Vec<usize> = vec![];
-    next_pos_prefix_array.extend(&allele_0s);
-    next_pos_prefix_array.extend(&allele_1s);
-    next_pos_prefix_array
+    let mut next_pp_array: Vec<usize> = vec![];
+    next_pp_array.extend(allele_0_pos);
+    next_pp_array.extend(allele_1_pos);
+    let mut next_div_array: Vec<usize> = vec![];
+    next_div_array.extend(allele_0_div);
+    next_div_array.extend(allele_1_div);
+    (next_pp_array, next_div_array)
 }
 
 
-/// Returns the positional prefix array (Durbin's a_k)
+/// Return the positional prefix and divergence arrays (Durbin's a_k[i] and d_k[i])
 ///
 /// # Arguments
 ///
@@ -31,17 +51,20 @@ fn next_positional_prefix_array(pos_prefix_array: &[usize], haplotypes: &[u8]) -
 ///                  indicating allele
 /// * `n_haplo` - The number of haplotypes
 /// * `k_site` - The numbered site to build the array for
-fn build_positional_prefix_array(haplotypes: &[u8], n_haplo: usize, k_site: usize) -> Vec<usize> {
+fn build_pp_and_div_arrays(haplotypes: &[u8], n_haplo: usize, k_site: usize) -> (Vec<usize>, Vec<usize>) {
     let mut pos_prefix_array: Vec<usize> = vec![0; n_haplo];
     for i in 0..n_haplo {
         pos_prefix_array[i] = i;
     }
+    let mut div_array: Vec<usize> = vec![0; n_haplo];
 
     for k in 0..(k_site-1) {
         let haplotypes_at_k = &haplotypes[k*n_haplo..(k+1)*n_haplo];
-        pos_prefix_array = next_positional_prefix_array(&pos_prefix_array, &haplotypes_at_k);
+        let (pos_prefix_array_tmp, div_array_tmp) = next_pp_and_div_arrays(&pos_prefix_array, &div_array, &haplotypes_at_k, k);
+        pos_prefix_array = pos_prefix_array_tmp;
+        div_array = div_array_tmp;
     }
-    pos_prefix_array
+    (pos_prefix_array, div_array)
 }
 
 fn main() {
@@ -52,7 +75,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_positional_prefix_array() {
+    fn test_pp_and_div_arrays() {
         let n_haplo: usize = 8;
         let n_sites: usize = 6;
         let haplotypes: Vec<u8> = vec![0, 1, 1, 0, 0, 1, 1, 0,
@@ -61,11 +84,15 @@ mod tests {
                                        1, 0, 1, 1, 0, 0, 0, 1,
                                        0, 0, 1, 1, 0, 1, 0, 1,
                                        1, 1, 1, 0, 0, 0, 1, 0];
-        let expected_1: Vec<usize> = vec![0, 1, 2, 3, 4, 5, 6, 7];
-        assert_eq!(&expected_1,
-                   &build_positional_prefix_array(&haplotypes, n_haplo, 1));
-        let expected_6: Vec<usize> = vec![4, 1, 6, 0, 5, 7, 3, 2];
-        assert_eq!(&expected_6,
-                   &build_positional_prefix_array(&haplotypes, n_haplo, n_sites));
+        let expected_pp_1: Vec<usize> = (0..8).collect();
+        let expected_div_1: Vec<usize> = vec![0; 8];
+        let (pp_1, div_1) = build_pp_and_div_arrays(&haplotypes, n_haplo, 1);
+        assert_eq!(&expected_pp_1, &pp_1);
+        assert_eq!(&expected_div_1, &div_1);
+        let expected_pp_6: Vec<usize> = vec![4, 1, 6, 0, 5, 7, 3, 2];
+        let expected_div_6: Vec<usize> = vec![5, 2, 0, 4, 5, 4, 3, 1];
+        let (pp_6, div_6) = build_pp_and_div_arrays(&haplotypes, n_haplo, n_sites);
+        assert_eq!(&expected_pp_6, &pp_6);
+        assert_eq!(&expected_div_6, &div_6);
     }
 }
