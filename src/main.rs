@@ -12,24 +12,24 @@ fn next_pp_and_div_arrays(pos_prefix_array: &[usize], div_array: &[usize], haplo
     let mut allele_1_pos: Vec<usize> = vec![];
     let mut allele_1_div: Vec<usize> = vec![];
 
-    let mut div_0_index: usize = k + 1;  // TODO: Naming. longest_common_prefix?
-    let mut div_1_index: usize = k + 1;
+    let mut match_0_start: usize = k + 1; // if this stays k+1, no match
+    let mut match_1_start: usize = k + 1;
 
     for (&haplo_index, &start_of_match) in pos_prefix_array.iter().zip(div_array.iter()) {
         if start_of_match > div_0_index {
-            div_0_index = start_of_match;
+            match_0_start = start_of_match;
         }
         if start_of_match > div_1_index {
-            div_1_index = start_of_match;
+            match_1_start = start_of_match;
         }
         if haplotypes[haplo_index] == 0 {
             allele_0_pos.push(haplo_index);
-            allele_0_div.push(div_0_index);
-            div_0_index = 0;
+            allele_0_div.push(match_0_start);
+            match_0_start = 0;
         } else {
             allele_1_pos.push(haplo_index);
-            allele_1_div.push(div_1_index);
-            div_1_index = 0;
+            allele_1_div.push(match_1_start);
+            match_1_start = 0;
         }
     }
     let mut next_pp_array: Vec<usize> = vec![];
